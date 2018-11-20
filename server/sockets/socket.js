@@ -1,31 +1,36 @@
 const { io } = require("../server");
+const { TicketControl } = require("../classes/ticket-control");
+
+const ticketControl = new TicketControl();
 
 //constant communication with backend
 io.on("connection", (client) => {
-    console.log("Client connected");
 
-    client.emit("sendMessage", {
-        user: "Admin",
-        message: "Welcome to this app"
+    client.on("nextTicket", (data, callback) => {
+        let nextTicket = ticketControl.nextTicket();
+        console.log("Next ticket: " + nextTicket);
+        callback(nextTicket);
     });
 
-    client.on("disconnect", () => {
-        console.log("Client disconnected");
+    client.emit("currentTicket", {
+        currentTicket: ticketControl.getCurrentTicket(),
+        lastFour: ticketControl.getLastFour()
     });
 
-    client.on("sendMessage", (payload, callback) => {
+    client.on("takeTicket", (data, callback) => {
+        if (!data.desk) {
+            return callback({
+                err: true,
+                msg: "Desk is required"
+            });
+        }
 
-        console.log(payload);
-        client.broadcast.emit("sendMessage", payload);
+        let ticketTaken = ticketControl.takeTicket(data.desk);
+        callback(ticketTaken);
 
-        // if (payload.user) {
-        //     callback({
-        //         resp: "OK TRUE"
-        //     });
-        // } else {
-        //     callback({
-        //         resp: "OK FALSE"
-        //     });
-        // }
+        client.broadcast.emit("updateInfo", {
+            lastFour: ticketControl.getLastFour()
+        });
     });
+
 });
